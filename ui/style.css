@@ -1,0 +1,118 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #1d2330;
+  --muted: #6b7280;
+  --border: #dde1e7;
+  --accent: #2563eb;
+  --accent-soft: #e8efff;
+  --danger: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --panel: #1f232a;
+    --text: #e6e8eb;
+    --muted: #9aa3ae;
+    --border: #343a44;
+    --accent: #5b8cff;
+    --accent-soft: #23304d;
+    --danger: #ff6b5e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+}
+
+main { max-width: 600px; margin: 0 auto; padding: 24px 20px; }
+
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+header { margin-bottom: 20px; }
+header p { margin: 0; }
+section { margin-bottom: 22px; }
+
+.muted { color: var(--muted); }
+.row { display: flex; align-items: center; gap: 12px; }
+.between { justify-content: space-between; }
+.path { font-size: 13px; word-break: break-all; }
+
+button {
+  font: inherit;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+/* Level cards: the radio input is hidden, the whole card is clickable. */
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  cursor: pointer;
+}
+.card input { position: absolute; opacity: 0; pointer-events: none; }
+.card .title { font-weight: 600; }
+.card .desc { font-size: 13px; color: var(--muted); }
+.card:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.card:has(input:disabled) { cursor: default; opacity: .7; }
+
+.bar { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+#bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+#summary { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.stats { display: flex; gap: 24px; margin-bottom: 8px; }
+.stats div { color: var(--muted); font-size: 13px; }
+.stats span { display: block; font-size: 22px; font-weight: 600; color: var(--text); }
+.size { font-size: 16px; margin: 8px 0 14px; }
+
+.error { color: var(--danger); }
+
+button.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.end { justify-content: flex-end; }
+
+/* Popup */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .45);
+}
+.overlay[hidden] { display: none; }
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+.dialog h3 { margin: 0 0 8px; font-size: 17px; }
+.dialog p { margin: 0 0 18px; }
+
+@media (max-width: 540px) {
+  .levels { grid-template-columns: 1fr; }
+}

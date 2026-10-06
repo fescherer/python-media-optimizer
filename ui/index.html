@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Media Optimizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Media Optimizer</h1>
+      <p class="muted">Shrink photos and videos before uploading to Google Drive. Your originals are never changed.</p>
+    </header>
+
+    <section>
+      <h2>1. Folder</h2>
+      <div class="row">
+        <button id="pick" disabled>Choose folder</button>
+        <span id="folder" class="path muted">No folder selected</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Optimization level</h2>
+      <div class="levels">
+        <label class="card">
+          <input type="radio" name="level" value="light">
+          <span class="title">Light</span>
+          <span class="desc">Hardly visible changes. Photos up to 4K, videos keep their resolution.</span>
+        </label>
+        <label class="card">
+          <input type="radio" name="level" value="medium" checked>
+          <span class="title">Medium</span>
+          <span class="desc">Good balance. Photos up to 2560 px, videos up to 1080p.</span>
+        </label>
+        <label class="card">
+          <input type="radio" name="level" value="heavy">
+          <span class="title">Heavy</span>
+          <span class="desc">Smallest files. Photos up to 1920 px, videos up to 720p.</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="row">
+      <button id="start" class="primary" disabled>Start</button>
+      <button id="cancel" hidden>Cancel</button>
+    </section>
+
+    <section id="progress" hidden>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <div class="row between">
+        <span id="count">File 0 of 0</span>
+        <span id="state" class="muted"></span>
+      </div>
+      <div id="current" class="path muted"></div>
+    </section>
+
+    <section id="summary" hidden>
+      <h2 id="summary-title">Done</h2>
+      <div class="stats">
+        <div><span id="s-processed">0</span>optimized</div>
+        <div><span id="s-skipped">0</span>copied unchanged</div>
+        <div><span id="s-failed">0</span>failed</div>
+      </div>
+      <p id="s-size" class="size"></p>
+      <button id="open">Open output folder</button>
+    </section>
+
+    <p id="error" class="error" hidden></p>
+  </main>
+
+  <!-- Popup used for "cancel?" confirmation and the "can't close now" notice. -->
+  <div id="modal" class="overlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title"></h3>
+      <p id="modal-text" class="muted"></p>
+      <div class="row end">
+        <button id="modal-no"></button>
+        <button id="modal-yes" class="danger"></button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

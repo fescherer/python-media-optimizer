@@ -8,6 +8,8 @@ PRESETS = {
         "video_max_height": None, # None = keep original resolution
         "video_crf": 23,          # H.264 CRF: lower = better quality, bigger file
         "audio_bitrate": "160k",
+        "gif_max_width": 640,     # "Transform videos to GIF": max width in pixels
+        "gif_fps": 15,            # GIF frames per second
     },
     "medium": {
         "image_max_side": 2560,
@@ -16,6 +18,8 @@ PRESETS = {
         "video_max_height": 1080,
         "video_crf": 26,
         "audio_bitrate": "128k",
+        "gif_max_width": 480,
+        "gif_fps": 12,
     },
     "heavy": {
         "image_max_side": 1920,
@@ -24,6 +28,8 @@ PRESETS = {
         "video_max_height": 720,
         "video_crf": 30,
         "audio_bitrate": "96k",
+        "gif_max_width": 360,
+        "gif_fps": 10,
     },
 }
 

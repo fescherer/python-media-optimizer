@@ -82,7 +82,9 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .option .title { display: block; font-weight: 600; }
 .option .desc { display: block; font-size: 13px; color: var(--muted); }
 .option:has(input:disabled) { cursor: default; opacity: .7; }
-#s-webp { margin: -6px 0 14px; font-size: 13px; }
+#s-webp { margin: -6px 0 2px; font-size: 13px; }
+#s-gif { margin: 0 0 14px; font-size: 13px; }
+.warn { margin: -8px 0 14px; font-size: 13px; color: var(--danger); }
 
 .bar { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
 #bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }

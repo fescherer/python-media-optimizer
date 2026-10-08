@@ -12,8 +12,10 @@ import tempfile
 import threading
 import time
 
-from . import images, videos
+from . import gif, images, videos
 from .presets import IMAGE_EXTENSIONS, PRESETS, VIDEO_EXTENSIONS
+
+GIF_WARNING_BYTES = 50 * 1024 * 1024  # warn about GIFs bigger than this
 
 
 def human_size(num_bytes):
@@ -86,6 +88,9 @@ class Runner:
             "new_bytes": 0,
             "webp": False,        # "Convert images to WebP" option
             "webp_converted": 0,
+            "gif": False,         # "Transform videos to GIF" option
+            "gif_converted": 0,
+            "gif_large": 0,       # GIFs over 50 MB or bigger than their video
             "output_dir": "",
             "message": "",
             "cancel_requested": False,
@@ -100,7 +105,7 @@ class Runner:
     def is_running(self):
         return self._thread is not None and self._thread.is_alive()
 
-    def start(self, source, level, to_webp=False):
+    def start(self, source, level, to_webp=False, to_gif=False):
         if self.is_running():
             raise RuntimeError("Already running.")
         if level not in PRESETS:
@@ -115,8 +120,9 @@ class Runner:
         with self._lock:
             self._state = self._new_state("running")
             self._state["webp"] = bool(to_webp)
+            self._state["gif"] = bool(to_gif)
         self._thread = threading.Thread(
-            target=self._run, args=(source, PRESETS[level], level, bool(to_webp)), daemon=True)
+            target=self._run, args=(source, PRESETS[level], level, bool(to_webp), bool(to_gif)), daemon=True)
         self._thread.start()
 
     def cancel(self):
@@ -135,13 +141,13 @@ class Runner:
             for key, value in amounts.items():
                 self._state[key] += value
 
-    def _run(self, source, preset, level, to_webp):
+    def _run(self, source, preset, level, to_webp, to_gif):
         try:
-            self._process_folder(source, preset, level, to_webp)
+            self._process_folder(source, preset, level, to_webp, to_gif)
         except Exception as e:  # e.g. output folder can't be created
             self._update(status="error", message=str(e))
 
-    def _process_folder(self, source, preset, level, to_webp):
+    def _process_folder(self, source, preset, level, to_webp, to_gif):
         # List everything first, so the new output folder can never end up in the list.
         rel_dirs, rel_files = [], []
         for dirpath, dirnames, filenames in os.walk(source):
@@ -162,19 +168,33 @@ class Runner:
             log.write(f"Source: {source}\nOutput: {output}\nLevel:  {level}\n")
             webp = f"on (quality {preset['webp_quality']})" if to_webp else "off"
             log.write(f"Convert images to WebP: {webp}\n")
+            gif_setting = f"on (max width {preset['gif_max_width']} px, {preset['gif_fps']} fps)" if to_gif else "off"
+            log.write(f"Transform videos to GIF: {gif_setting}\n")
             log.write(f"Started {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
             for i, rel in enumerate(rel_files, 1):
                 if self._cancel.is_set():
                     break
                 self._update(index=i, current=rel)
-                status, detail, orig_size, new_size, out_rel = self._process_file(source, output, rel, preset, tmp, to_webp)
+                status, detail, orig_size, new_size, out_rel = self._process_file(
+                    source, output, rel, preset, tmp, to_webp, to_gif)
+                arrow = f" -> {out_rel}" if out_rel and out_rel != rel else ""
+
+                if status == "CANCELLED":  # stopped mid-file: nothing was written for it
+                    log.write(f"{status:<10} {rel}  {detail}\n")
+                    break
 
                 counter = {"OPTIMIZED": "processed", "SKIPPED": "skipped", "FAILED": "failed"}[status]
                 converted = int(status == "OPTIMIZED" and to_webp and out_rel.lower().endswith(".webp"))
-                self._add(**{counter: 1}, original_bytes=orig_size, new_bytes=new_size, webp_converted=converted)
-                arrow = f" -> {out_rel}" if out_rel and out_rel != rel else ""
+                made_gif = status == "OPTIMIZED" and to_gif and out_rel.lower().endswith(".gif")
+                gif_large = made_gif and (new_size > GIF_WARNING_BYTES or new_size > orig_size)
+                self._add(**{counter: 1}, original_bytes=orig_size, new_bytes=new_size, webp_converted=converted,
+                          gif_converted=int(made_gif), gif_large=int(gif_large))
                 log.write(f"{status:<10} {rel}{arrow}  ({human_size(orig_size)} -> {human_size(new_size)})  {detail}\n")
+                if gif_large:
+                    reasons = [r for r, hit in (("over 50 MB", new_size > GIF_WARNING_BYTES),
+                                                ("larger than the original video", new_size > orig_size)) if hit]
+                    log.write(f"{'WARNING':<10} {out_rel} is {human_size(new_size)}: {' and '.join(reasons)}\n")
                 log.flush()
 
             s = self.get_progress()
@@ -187,9 +207,13 @@ class Runner:
             )
             if to_webp:
                 log.write(f"Converted to WebP: {s['webp_converted']}\n")
+            if to_gif:
+                log.write(f"Converted to GIF: {s['gif_converted']}\n")
+                if s["gif_large"]:
+                    log.write(f"GIFs over 50 MB or larger than the original video: {s['gif_large']}\n")
         self._update(status="cancelled" if cancelled else "done", current="")
 
-    def _process_file(self, source, output, rel, preset, tmp, to_webp=False):
+    def _process_file(self, source, output, rel, preset, tmp, to_webp=False, to_gif=False):
         """Handle one file. Returns (status, detail, original_size, new_size, output_relpath)."""
         src = os.path.join(source, rel)
         dst = os.path.join(output, rel)
@@ -198,9 +222,12 @@ class Runner:
         try:
             orig_size = os.path.getsize(src)
 
-            webp = to_webp and ext in IMAGE_EXTENSIONS
+            # Forced conversions (WebP / GIF) are kept even when bigger, and get "_2" names on clashes.
+            forced = (to_webp and ext in IMAGE_EXTENSIONS) or (to_gif and ext in VIDEO_EXTENSIONS)
             if ext in IMAGE_EXTENSIONS:
                 optimize = lambda s, w, p: images.optimize_image(s, w, p, to_webp=to_webp)
+            elif ext in VIDEO_EXTENSIONS and to_gif:
+                optimize = lambda s, w, p: gif.video_to_gif(s, w, p, should_cancel=self._cancel.is_set)
             elif ext in VIDEO_EXTENSIONS:
                 optimize = videos.optimize_video
             else:
@@ -214,24 +241,27 @@ class Runner:
                 except images.KeepOriginal as e:
                     out = copy_original(src, dst)
                     return "SKIPPED", str(e), orig_size, orig_size, os.path.relpath(out, output)
+                except gif.Cancelled as e:
+                    return "CANCELLED", str(e), orig_size, 0, ""
 
                 new_size = os.path.getsize(result)
-                # With WebP conversion on, the .webp is kept even if it came out bigger.
-                if new_size >= orig_size and not webp:
+                # With WebP/GIF conversion on, the converted file is kept even if it came out bigger.
+                if new_size >= orig_size and not forced:
                     out = copy_original(src, dst)
                     return "SKIPPED", "optimized file was not smaller, copied original", \
                         orig_size, orig_size, os.path.relpath(out, output)
 
                 # Output may have a new extension (e.g. .heic -> .jpg, .mov -> .mp4).
                 wanted = os.path.splitext(dst)[0] + os.path.splitext(result)[1]
-                # WebP: 'photo.jpg' and 'photo.png' both become 'photo.webp', so number the second one.
-                out = numbered_path(wanted) if webp else unique_path(wanted)
+                # WebP/GIF: 'photo.jpg' + 'photo.png' (or 'clip.mp4' + 'clip.mov') clash, so number the second one.
+                out = numbered_path(wanted) if forced else unique_path(wanted)
                 shutil.move(result, out)
                 st = os.stat(src)
                 os.utime(out, (st.st_atime, st.st_mtime))  # keep the original file date
                 saved = 100 * (1 - new_size / orig_size) if orig_size else 0
-                detail = f"saved {saved:.0f}%" if saved >= 0 else f"{-saved:.0f}% larger (kept as WebP)"
-                if webp and out != wanted:
+                kept_as = os.path.splitext(out)[1].lstrip(".").upper()
+                detail = f"saved {saved:.0f}%" if saved >= 0 else f"{-saved:.0f}% larger (kept as {kept_as})"
+                if forced and out != wanted:
                     detail += f"; {os.path.basename(wanted)} already taken, renamed to {os.path.basename(out)}"
                 return "OPTIMIZED", detail, orig_size, new_size, os.path.relpath(out, output)
             finally:

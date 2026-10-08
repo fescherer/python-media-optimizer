@@ -65,9 +65,9 @@ class Api:
         result = self._window.create_file_dialog(webview.FileDialog.FOLDER)
         return result[0] if result else None
 
-    def start(self, folder, level, to_webp=False):
+    def start(self, folder, level, to_webp=False, to_gif=False):
         try:
-            self._runner.start(folder, level, to_webp)
+            self._runner.start(folder, level, to_webp, to_gif)
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}

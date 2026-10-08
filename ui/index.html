@@ -46,6 +46,13 @@
           <span class="desc">Smaller files. Supported by Google Drive and modern browsers.</span>
         </span>
       </label>
+      <label class="option">
+        <input type="checkbox" id="gif">
+        <span>
+          <span class="title">Transform videos to GIF</span>
+          <span class="desc">GIFs have no sound and are usually larger than videos. Best for short clips.</span>
+        </span>
+      </label>
     </section>
 
     <section class="row">
@@ -71,6 +78,8 @@
       </div>
       <p id="s-size" class="size"></p>
       <p id="s-webp" class="muted"></p>
+      <p id="s-gif" class="muted"></p>
+      <p id="s-gif-warn" class="warn" hidden></p>
       <button id="open">Open output folder</button>
     </section>
 

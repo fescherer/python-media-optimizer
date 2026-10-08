@@ -24,7 +24,12 @@ function setRunning(running) {
   $("cancel").disabled = false;
   document.querySelectorAll("input[name=level]").forEach((r) => (r.disabled = running));
   $("webp").disabled = running;
+  $("gif").disabled = running;
 }
+
+// Elapsed time on the current file, so long GIFs/videos visibly keep working.
+let fileStarted = 0;
+let lastFile = null;
 
 function render(p) {
   const finished = p.status !== "running";
@@ -32,7 +37,16 @@ function render(p) {
   $("bar-fill").style.width = (p.total ? (done / p.total) * 100 : 100) + "%";
   $("count").textContent = `File ${p.index} of ${p.total}`;
   $("current").textContent = p.current;
-  $("state").textContent = p.cancel_requested && !finished ? "Stopping after this file…" : "";
+
+  if (p.current !== lastFile) {
+    lastFile = p.current;
+    fileStarted = Date.now();
+  }
+  const secs = Math.floor((Date.now() - fileStarted) / 1000);
+  let state = "";
+  if (!finished && p.cancel_requested) state = p.gif ? "Stopping…" : "Stopping after this file…";
+  else if (!finished && secs >= 3) state = `Working… ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  $("state").textContent = state;
 }
 
 function showSummary(p) {
@@ -47,6 +61,13 @@ function showSummary(p) {
   $("s-webp").textContent = p.webp
     ? `Convert images to WebP: on (${p.webp_converted} image${p.webp_converted === 1 ? "" : "s"} converted)`
     : "Convert images to WebP: off";
+  $("s-gif").textContent = p.gif
+    ? `Transform videos to GIF: on (${p.gif_converted} video${p.gif_converted === 1 ? "" : "s"} converted)`
+    : "Transform videos to GIF: off";
+  $("s-gif-warn").hidden = !p.gif_large;
+  $("s-gif-warn").textContent = p.gif_large === 1
+    ? "1 GIF is larger than the original video or over 50 MB (see log.txt)."
+    : `${p.gif_large} GIFs are larger than the original video or over 50 MB (see log.txt).`;
   $("open").hidden = !p.output_dir;
   $("summary").hidden = false;
   if (p.status === "error") showError(p.message);
@@ -78,7 +99,8 @@ $("start").addEventListener("click", async () => {
   const level = document.querySelector("input[name=level]:checked").value;
   showError("");
   const toWebp = $("webp").checked;
-  const result = await window.pywebview.api.start(folder, level, toWebp);
+  const toGif = $("gif").checked;
+  const result = await window.pywebview.api.start(folder, level, toWebp, toGif);
   if (!result.ok) {
     showError(result.error);
     return;
@@ -128,6 +150,7 @@ $("cancel").addEventListener("click", () =>
   confirmCancel(
     "Cancel optimization?",
     "The file being processed now will finish, then the run stops. " +
+      ($("gif").checked ? "A GIF that is still being made is stopped right away and not saved. " : "") +
       "Files already done stay in the output folder."
   )
 );

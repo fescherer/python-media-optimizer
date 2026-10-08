@@ -22,11 +22,12 @@ def _has_transparency(img):
     return False
 
 
-def optimize_image(src, work_dir, preset):
+def optimize_image(src, work_dir, preset, to_webp=False):
     """Optimize one image and write the result into work_dir.
 
     The source is only opened for reading. Returns the path of the new file;
     its extension tells the caller the output format (.jpg, .png or .webp).
+    With to_webp=True every image is saved as WebP (transparency kept).
     """
     ext = os.path.splitext(src)[1].lower()
 
@@ -50,7 +51,15 @@ def optimize_image(src, work_dir, preset):
         img = img.convert("RGBA" if has_alpha else "RGB")
 
     # Pick the output format.
-    if ext == ".webp":
+    if to_webp:
+        fmt, out_ext = "WEBP", ".webp"
+        if _has_transparency(img):
+            img = img.convert("RGBA")       # WebP stores RGB(A); keep the transparency
+        elif img.mode != "RGB":
+            if img.mode == "CMYK":
+                icc_profile = None          # a CMYK profile doesn't fit RGB pixels
+            img = img.convert("RGB")       # no real transparency: drop the alpha channel
+    elif ext == ".webp":
         fmt, out_ext = "WEBP", ".webp"
     elif _has_transparency(img):
         fmt, out_ext = "PNG", ".png"        # PNG (or BMP/TIFF) with real transparency
@@ -67,7 +76,7 @@ def optimize_image(src, work_dir, preset):
     if fmt == "JPEG":
         options = {"quality": preset["image_quality"], "optimize": True, "progressive": True}
     elif fmt == "WEBP":
-        options = {"quality": preset["image_quality"], "method": 6}
+        options = {"quality": preset["webp_quality"], "method": 6}
     else:
         options = {"optimize": True}
     if icc_profile:

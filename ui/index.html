@@ -39,6 +39,13 @@
           <span class="desc">Smallest files. Photos up to 1920 px, videos up to 720p.</span>
         </label>
       </div>
+      <label class="option">
+        <input type="checkbox" id="webp">
+        <span>
+          <span class="title">Convert images to WebP</span>
+          <span class="desc">Smaller files. Supported by Google Drive and modern browsers.</span>
+        </span>
+      </label>
     </section>
 
     <section class="row">
@@ -63,6 +70,7 @@
         <div><span id="s-failed">0</span>failed</div>
       </div>
       <p id="s-size" class="size"></p>
+      <p id="s-webp" class="muted"></p>
       <button id="open">Open output folder</button>
     </section>
 

@@ -76,6 +76,14 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .card:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .card:has(input:disabled) { cursor: default; opacity: .7; }
 
+/* "Convert images to WebP" checkbox under the level cards. */
+.option { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; cursor: pointer; }
+.option input { margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--accent); cursor: inherit; }
+.option .title { display: block; font-weight: 600; }
+.option .desc { display: block; font-size: 13px; color: var(--muted); }
+.option:has(input:disabled) { cursor: default; opacity: .7; }
+#s-webp { margin: -6px 0 14px; font-size: 13px; }
+
 .bar { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
 #bar-fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 

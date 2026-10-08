@@ -21,6 +21,7 @@ Edit `optimizer/presets.py` to change these numbers.
 
 - Images are never enlarged. Photos are rotated according to EXIF orientation, and EXIF data (date, camera, GPS) and the file date are kept where possible.
 - JPEGs stay JPEG. PNGs stay PNG only if they have transparency; otherwise they become JPEG. HEIC (iPhone) becomes JPEG. WebP stays WebP.
+- **Convert images to WebP** (checkbox, off by default): every image is saved as `.webp` instead, using the `webp_quality` of the chosen level, keeping transparency and EXIF. The WebP is kept even if it is larger than the original. Name clashes (`photo.jpg` + `photo.png`) become `photo.webp` and `photo_2.webp`.
 - Animated or multi-page images (animated WebP, multi-page TIFF) are copied unchanged.
 - Videos become MP4 (H.264 + AAC) so Google Drive can preview them. The video resolution limit applies to the *shorter* side, so portrait phone videos are handled correctly.
 - If two files end up with the same name (e.g. `photo.png` and `photo.jpg` both become `photo.jpg`), the second is saved as `photo (2).jpg`.

@@ -47,6 +47,17 @@ def unique_path(path):
     return f"{stem} ({n}){ext}"
 
 
+def numbered_path(path):
+    """Return path, or 'name_2.ext', 'name_3.ext'... if it already exists."""
+    if not os.path.exists(path):
+        return path
+    stem, ext = os.path.splitext(path)
+    n = 2
+    while os.path.exists(f"{stem}_{n}{ext}"):
+        n += 1
+    return f"{stem}_{n}{ext}"
+
+
 def copy_original(src, dst):
     """Copy a source file unchanged (copy2 reads the source and keeps its dates)."""
     dst = unique_path(dst)
@@ -73,6 +84,8 @@ class Runner:
             "failed": 0,
             "original_bytes": 0,
             "new_bytes": 0,
+            "webp": False,        # "Convert images to WebP" option
+            "webp_converted": 0,
             "output_dir": "",
             "message": "",
             "cancel_requested": False,
@@ -87,7 +100,7 @@ class Runner:
     def is_running(self):
         return self._thread is not None and self._thread.is_alive()
 
-    def start(self, source, level):
+    def start(self, source, level, to_webp=False):
         if self.is_running():
             raise RuntimeError("Already running.")
         if level not in PRESETS:
@@ -101,7 +114,9 @@ class Runner:
         self._cancel.clear()
         with self._lock:
             self._state = self._new_state("running")
-        self._thread = threading.Thread(target=self._run, args=(source, PRESETS[level], level), daemon=True)
+            self._state["webp"] = bool(to_webp)
+        self._thread = threading.Thread(
+            target=self._run, args=(source, PRESETS[level], level, bool(to_webp)), daemon=True)
         self._thread.start()
 
     def cancel(self):
@@ -120,13 +135,13 @@ class Runner:
             for key, value in amounts.items():
                 self._state[key] += value
 
-    def _run(self, source, preset, level):
+    def _run(self, source, preset, level, to_webp):
         try:
-            self._process_folder(source, preset, level)
+            self._process_folder(source, preset, level, to_webp)
         except Exception as e:  # e.g. output folder can't be created
             self._update(status="error", message=str(e))
 
-    def _process_folder(self, source, preset, level):
+    def _process_folder(self, source, preset, level, to_webp):
         # List everything first, so the new output folder can never end up in the list.
         rel_dirs, rel_files = [], []
         for dirpath, dirnames, filenames in os.walk(source):
@@ -145,16 +160,19 @@ class Runner:
         with open(log_path, "w", encoding="utf-8") as log, \
                 tempfile.TemporaryDirectory(prefix="optimizer_", ignore_cleanup_errors=True) as tmp:
             log.write(f"Source: {source}\nOutput: {output}\nLevel:  {level}\n")
+            webp = f"on (quality {preset['webp_quality']})" if to_webp else "off"
+            log.write(f"Convert images to WebP: {webp}\n")
             log.write(f"Started {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
             for i, rel in enumerate(rel_files, 1):
                 if self._cancel.is_set():
                     break
                 self._update(index=i, current=rel)
-                status, detail, orig_size, new_size, out_rel = self._process_file(source, output, rel, preset, tmp)
+                status, detail, orig_size, new_size, out_rel = self._process_file(source, output, rel, preset, tmp, to_webp)
 
                 counter = {"OPTIMIZED": "processed", "SKIPPED": "skipped", "FAILED": "failed"}[status]
-                self._add(**{counter: 1}, original_bytes=orig_size, new_bytes=new_size)
+                converted = int(status == "OPTIMIZED" and to_webp and out_rel.lower().endswith(".webp"))
+                self._add(**{counter: 1}, original_bytes=orig_size, new_bytes=new_size, webp_converted=converted)
                 arrow = f" -> {out_rel}" if out_rel and out_rel != rel else ""
                 log.write(f"{status:<10} {rel}{arrow}  ({human_size(orig_size)} -> {human_size(new_size)})  {detail}\n")
                 log.flush()
@@ -167,9 +185,11 @@ class Runner:
                 f"Optimized: {s['processed']}  Copied unchanged: {s['skipped']}  Failed: {s['failed']}\n"
                 f"Size: {human_size(s['original_bytes'])} -> {human_size(s['new_bytes'])}\n"
             )
+            if to_webp:
+                log.write(f"Converted to WebP: {s['webp_converted']}\n")
         self._update(status="cancelled" if cancelled else "done", current="")
 
-    def _process_file(self, source, output, rel, preset, tmp):
+    def _process_file(self, source, output, rel, preset, tmp, to_webp=False):
         """Handle one file. Returns (status, detail, original_size, new_size, output_relpath)."""
         src = os.path.join(source, rel)
         dst = os.path.join(output, rel)
@@ -178,8 +198,9 @@ class Runner:
         try:
             orig_size = os.path.getsize(src)
 
+            webp = to_webp and ext in IMAGE_EXTENSIONS
             if ext in IMAGE_EXTENSIONS:
-                optimize = images.optimize_image
+                optimize = lambda s, w, p: images.optimize_image(s, w, p, to_webp=to_webp)
             elif ext in VIDEO_EXTENSIONS:
                 optimize = videos.optimize_video
             else:
@@ -195,18 +216,24 @@ class Runner:
                     return "SKIPPED", str(e), orig_size, orig_size, os.path.relpath(out, output)
 
                 new_size = os.path.getsize(result)
-                if new_size >= orig_size:
+                # With WebP conversion on, the .webp is kept even if it came out bigger.
+                if new_size >= orig_size and not webp:
                     out = copy_original(src, dst)
                     return "SKIPPED", "optimized file was not smaller, copied original", \
                         orig_size, orig_size, os.path.relpath(out, output)
 
                 # Output may have a new extension (e.g. .heic -> .jpg, .mov -> .mp4).
-                out = unique_path(os.path.splitext(dst)[0] + os.path.splitext(result)[1])
+                wanted = os.path.splitext(dst)[0] + os.path.splitext(result)[1]
+                # WebP: 'photo.jpg' and 'photo.png' both become 'photo.webp', so number the second one.
+                out = numbered_path(wanted) if webp else unique_path(wanted)
                 shutil.move(result, out)
                 st = os.stat(src)
                 os.utime(out, (st.st_atime, st.st_mtime))  # keep the original file date
                 saved = 100 * (1 - new_size / orig_size) if orig_size else 0
-                return "OPTIMIZED", f"saved {saved:.0f}%", orig_size, new_size, os.path.relpath(out, output)
+                detail = f"saved {saved:.0f}%" if saved >= 0 else f"{-saved:.0f}% larger (kept as WebP)"
+                if webp and out != wanted:
+                    detail += f"; {os.path.basename(wanted)} already taken, renamed to {os.path.basename(out)}"
+                return "OPTIMIZED", detail, orig_size, new_size, os.path.relpath(out, output)
             finally:
                 shutil.rmtree(work, ignore_errors=True)
 

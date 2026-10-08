@@ -23,6 +23,7 @@ function setRunning(running) {
   $("cancel").hidden = !running;
   $("cancel").disabled = false;
   document.querySelectorAll("input[name=level]").forEach((r) => (r.disabled = running));
+  $("webp").disabled = running;
 }
 
 function render(p) {
@@ -43,6 +44,9 @@ function showSummary(p) {
   const saved = p.original_bytes ? Math.round((1 - p.new_bytes / p.original_bytes) * 100) : 0;
   $("s-size").textContent =
     `${formatSize(p.original_bytes)} → ${formatSize(p.new_bytes)} (${saved}% saved)`;
+  $("s-webp").textContent = p.webp
+    ? `Convert images to WebP: on (${p.webp_converted} image${p.webp_converted === 1 ? "" : "s"} converted)`
+    : "Convert images to WebP: off";
   $("open").hidden = !p.output_dir;
   $("summary").hidden = false;
   if (p.status === "error") showError(p.message);
@@ -73,7 +77,8 @@ $("pick").addEventListener("click", async () => {
 $("start").addEventListener("click", async () => {
   const level = document.querySelector("input[name=level]:checked").value;
   showError("");
-  const result = await window.pywebview.api.start(folder, level);
+  const toWebp = $("webp").checked;
+  const result = await window.pywebview.api.start(folder, level, toWebp);
   if (!result.ok) {
     showError(result.error);
     return;

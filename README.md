@@ -11,11 +11,11 @@ A small Windows desktop app that shrinks the photos and videos in a folder befor
 
 ## What each level does
 
-| Level  | Photos: longest side | Photo quality | Videos: max resolution | Video CRF | Audio |
-|--------|----------------------|---------------|------------------------|-----------|-------|
-| Light  | 3840 px              | 85            | original               | 23        | 160k  |
-| Medium | 2560 px              | 75            | 1080p                  | 26        | 128k  |
-| Heavy  | 1920 px              | 65            | 720p                   | 30        | 96k   |
+| Level  | Photos: longest side | Photo quality | Videos: max resolution | Video CRF | Video max fps | x264 preset | Audio |
+|--------|----------------------|---------------|------------------------|-----------|---------------|-------------|-------|
+| Light  | 3840 px              | 85            | original               | 23        | original      | medium      | 160k  |
+| Medium | 2560 px              | 75            | 1080p                  | 26        | original      | medium      | 128k  |
+| Heavy  | 1920 px              | 65            | 480p                   | 33        | 30            | slow        | 64k   |
 
 Edit `optimizer/presets.py` to change these numbers.
 

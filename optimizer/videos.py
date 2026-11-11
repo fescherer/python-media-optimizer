@@ -25,6 +25,15 @@ def _scale_filter(max_height):
     )
 
 
+def _video_filter(preset):
+    """Scale filter, plus a frame-rate cap (never raises the source frame rate)."""
+    vf = _scale_filter(preset["video_max_height"])
+    max_fps = preset["video_max_fps"]
+    if max_fps:
+        vf += f",fps='min(source_fps,{max_fps})'"
+    return vf
+
+
 def optimize_video(src, work_dir, preset):
     """Re-encode one video to H.264/AAC MP4 inside work_dir. Returns the new file's path."""
     out_path = os.path.join(work_dir, "video.mp4")
@@ -34,8 +43,8 @@ def optimize_video(src, work_dir, preset):
         "-i", src,                       # FFmpeg only reads the source
         "-map", "0:v:0", "-map", "0:a:0?",  # first video stream + first audio stream if any
         "-map_metadata", "0",            # keep creation date etc.
-        "-vf", _scale_filter(preset["video_max_height"]),
-        "-c:v", "libx264", "-preset", "medium", "-crf", str(preset["video_crf"]),
+        "-vf", _video_filter(preset),
+        "-c:v", "libx264", "-preset", preset["video_speed"], "-crf", str(preset["video_crf"]),
         "-pix_fmt", "yuv420p",           # most compatible; Google Drive can preview it
         "-c:a", "aac", "-b:a", preset["audio_bitrate"],
         "-movflags", "+faststart",

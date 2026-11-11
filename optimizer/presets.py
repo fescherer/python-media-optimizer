@@ -7,6 +7,8 @@ PRESETS = {
         "webp_quality": 85,       # WebP quality (1-100)
         "video_max_height": None, # None = keep original resolution
         "video_crf": 23,          # H.264 CRF: lower = better quality, bigger file
+        "video_speed": "medium",  # x264 preset: slower = smaller file at the same quality
+        "video_max_fps": None,    # None = keep original frame rate; never increases it
         "audio_bitrate": "160k",
         "gif_max_width": 640,     # "Transform videos to GIF": max width in pixels
         "gif_fps": 15,            # GIF frames per second
@@ -17,6 +19,8 @@ PRESETS = {
         "webp_quality": 75,
         "video_max_height": 1080,
         "video_crf": 26,
+        "video_speed": "medium",
+        "video_max_fps": None,
         "audio_bitrate": "128k",
         "gif_max_width": 480,
         "gif_fps": 12,
@@ -25,9 +29,11 @@ PRESETS = {
         "image_max_side": 1920,
         "image_quality": 65,
         "webp_quality": 65,
-        "video_max_height": 720,
-        "video_crf": 30,
-        "audio_bitrate": "96k",
+        "video_max_height": 360,
+        "video_crf": 33,
+        "video_speed": "slow",
+        "video_max_fps": 30,
+        "audio_bitrate": "64k",
         "gif_max_width": 360,
         "gif_fps": 10,
     },
